@@ -85,4 +85,22 @@ object GeneratorsFileUtil {
         }
         return StringUtil.convertLineSeparators(content) != currentContent
     }
+
+    fun collectPreviouslyGeneratedFiles(generationPath: File): List<File> {
+        return generationPath.walkTopDown().filter {
+            it.isFile
+        }.toList()
+    }
+
+    fun removeExtraFilesFromPreviousGeneration(previouslyGeneratedFiles: List<File>, generatedFiles: List<File>) {
+        val generatedFilesPath = generatedFiles.mapTo(mutableSetOf()) { it.absolutePath }
+
+        for (file in previouslyGeneratedFiles) {
+            if (file.absolutePath !in generatedFilesPath) {
+                if (GeneratorsFileUtil.failOnTeamCity("File delete `${file.absolutePath}`")) continue
+                println("Deleted: ${file.absolutePath}")
+                file.delete()
+            }
+        }
+    }
 }
