@@ -711,6 +711,11 @@ class FirCallResolver(
             !applicability.isSuccess -> {
                 val candidate = candidates.single()
                 val diagnostic = createConeDiagnosticForCandidateWithError(applicability, candidate)
+                /*
+                val scope = callInfo.explicitReceiver.typeRef.coneType.scope(session, ScopeSession(), FakeOverrideTypeCalculator.DoNothing)!!
+                scope.getProperties(Name.identifier("supertypes"))
+                scope.getFunctions(Name.identifier("getSupertypes"))
+                 */
                 createErrorReferenceWithExistingCandidate(
                     candidate,
                     diagnostic,

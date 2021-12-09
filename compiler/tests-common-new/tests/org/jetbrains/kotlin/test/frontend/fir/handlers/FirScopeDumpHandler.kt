@@ -61,7 +61,18 @@ class FirScopeDumpHandler(testServices: TestServices) : FirAnalysisHandler(testS
         scopeSession: ScopeSession,
         module: TestModule
     ) {
-        val classId = ClassId.topLevel(FqName.fromSegments(fqName.split(".")))
+        val (packageFqName, className) = fqName.split(".").let {
+            val packageName = FqName.fromSegments(it.dropLast(1))
+            packageName to it.last()
+        }
+        val classId = className.let {
+            val names = it.split("$")
+            var classId = ClassId(packageFqName, Name.identifier(names.first()))
+            for (name in names.drop(1)) {
+                classId = classId.createNestedClassId(Name.identifier(name))
+            }
+            classId
+        }
         val symbol = session.symbolProvider.getClassLikeSymbolByClassId(classId) ?: assertions.fail {
             "Class $fqName not found in module ${module.name}"
         }
