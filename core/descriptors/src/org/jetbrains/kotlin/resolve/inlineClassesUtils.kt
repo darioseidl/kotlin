@@ -19,8 +19,11 @@ val JVM_INLINE_ANNOTATION_CLASS_ID = ClassId.topLevel(JVM_INLINE_ANNOTATION_FQ_N
 
 // FIXME: DeserializedClassDescriptor in reflection do not have @JvmInline annotation, that we
 // FIXME: would like to check as well.
-fun DeclarationDescriptor.isInlineClass(): Boolean =
-    this is ClassDescriptor && (isInline || isValue && (unsubstitutedPrimaryConstructor?.valueParameters?.size?.let { it <= 1 } ?: true))
+fun DeclarationDescriptor.isInlineClass(): Boolean = when {
+    this !is ClassDescriptor -> false
+    isInline -> true
+    else -> isValue && (unsubstitutedPrimaryConstructor?.valueParameters?.size?.let { it == 1 } ?: true)
+}
 
 fun DeclarationDescriptor.isValueClass(): Boolean =
     this is ClassDescriptor && isValue
@@ -50,28 +53,42 @@ fun KotlinType.substitutedUnderlyingTypes(): List<KotlinType?> =
     unsubstitutedUnderlyingTypes().map { TypeSubstitutor.create(this).substitute(it, Variance.INVARIANT) }
 
 fun KotlinType.isRecursiveInlineOrValueClassType(): Boolean =
-    isRecursiveInlineOrValueClassTypeInner(hashSetOf())
+    isRecursiveInlineOrValueClassTypeInner(ReversibleHashSet())
 
-private fun KotlinType.isRecursiveInlineOrValueClassTypeInner(visited: HashSet<ClassifierDescriptor>): Boolean {
+private class ReversibleHashSet : HashSet<ClassifierDescriptor>() {
+    override fun add(element: ClassifierDescriptor): Boolean = super.add(element).also {
+        if (it) {
+            addedAfterCheckPointImpl.last().add(element)
+        }
+    }
+
+    private val addedAfterCheckPointImpl: MutableList<MutableList<ClassifierDescriptor>> = mutableListOf(mutableListOf())
+    private val diff: List<ClassifierDescriptor>
+        get() = addedAfterCheckPointImpl.last()
+
+    fun <T> withRevert(proceedDiffAfterAction: (List<ClassifierDescriptor>) -> Unit, action: () -> T): T {
+        addedAfterCheckPointImpl.add(mutableListOf())
+        return try {
+            action().also { proceedDiffAfterAction(diff) }
+        } finally {
+            @Suppress("ConvertArgumentToSet")
+            removeAll(addedAfterCheckPointImpl.removeLast())
+        }
+    }
+}
+
+private fun KotlinType.isRecursiveInlineOrValueClassTypeInner(visited: ReversibleHashSet): Boolean {
     val descriptor = constructor.declarationDescriptor?.original ?: return false
 
     if (!visited.add(descriptor)) return true
 
-    val old = visited.toHashSet()
-
-    class NestedHashSet : HashSet<ClassifierDescriptor>(old) {
-        override fun add(element: ClassifierDescriptor): Boolean = super.add(element).also { visited.add(element) }
-    }
+    val toAddAgain = HashSet<ClassifierDescriptor>()
 
     return when (descriptor) {
-        is ClassDescriptor ->
-            descriptor.isInlineOrValueClass() && unsubstitutedUnderlyingTypes().any {
-                it.isRecursiveInlineOrValueClassTypeInner(NestedHashSet())
-            }
-
-        is TypeParameterDescriptor ->
-            descriptor.upperBounds.any { it.isRecursiveInlineOrValueClassTypeInner(visited) }
-
+        is ClassDescriptor -> descriptor.isInlineOrValueClass() && unsubstitutedUnderlyingTypes().any {
+            visited.withRevert(proceedDiffAfterAction = { toAddAgain.addAll(it) }) { it.isRecursiveInlineOrValueClassTypeInner(visited) }
+        }.also { visited.addAll(toAddAgain) }
+        is TypeParameterDescriptor -> descriptor.upperBounds.any { it.isRecursiveInlineOrValueClassTypeInner(visited) }
         else -> false
     }
 }

@@ -5,9 +5,34 @@
 
 package kotlinx.metadata
 
+import kotlinx.metadata.Flag.Class.IS_ANNOTATION_CLASS
+import kotlinx.metadata.Flag.Class.IS_CLASS
+import kotlinx.metadata.Flag.Class.IS_COMPANION_OBJECT
+import kotlinx.metadata.Flag.Class.IS_ENUM_CLASS
+import kotlinx.metadata.Flag.Class.IS_ENUM_ENTRY
+import kotlinx.metadata.Flag.Class.IS_INTERFACE
+import kotlinx.metadata.Flag.Class.IS_OBJECT
+import kotlinx.metadata.Flag.Common.IS_ABSTRACT
+import kotlinx.metadata.Flag.Common.IS_FINAL
+import kotlinx.metadata.Flag.Common.IS_INTERNAL
+import kotlinx.metadata.Flag.Common.IS_LOCAL
+import kotlinx.metadata.Flag.Common.IS_OPEN
+import kotlinx.metadata.Flag.Common.IS_PRIVATE
+import kotlinx.metadata.Flag.Common.IS_PRIVATE_TO_THIS
+import kotlinx.metadata.Flag.Common.IS_PROTECTED
+import kotlinx.metadata.Flag.Common.IS_PUBLIC
+import kotlinx.metadata.Flag.Common.IS_SEALED
+import kotlinx.metadata.Flag.Function.IS_DECLARATION
+import kotlinx.metadata.Flag.Function.IS_DELEGATION
+import kotlinx.metadata.Flag.Function.IS_FAKE_OVERRIDE
+import kotlinx.metadata.Flag.Function.IS_SYNTHESIZED
+import kotlinx.metadata.Flag.Property.IS_DECLARATION
+import kotlinx.metadata.Flag.Property.IS_DELEGATION
+import kotlinx.metadata.Flag.Property.IS_FAKE_OVERRIDE
+import kotlinx.metadata.Flag.Property.IS_SYNTHESIZED
 import org.jetbrains.kotlin.metadata.ProtoBuf.*
-import org.jetbrains.kotlin.metadata.deserialization.Flags as F
 import org.jetbrains.kotlin.metadata.ProtoBuf.Class.Kind as ClassKind
+import org.jetbrains.kotlin.metadata.deserialization.Flags as F
 
 /**
  * Represents a boolean flag that is either present or not in a Kotlin declaration. A "flag" is a boolean trait that is either present
@@ -208,13 +233,13 @@ class Flag(private val offset: Int, private val bitWidth: Int, private val value
             level = DeprecationLevel.ERROR
         )
         @Suppress("unused")
-        val IS_INLINE = Flag(F.IS_INLINE_CLASS)
+        val IS_INLINE = Flag(F.IS_VALUE_CLASS)
 
         /**
          * Signifies that the corresponding class is either a pre-Kotlin-1.5 `inline` class, or a 1.5+ `value` class.
          */
         @JvmField
-        val IS_VALUE = Flag(F.IS_INLINE_CLASS)
+        val IS_VALUE = Flag(F.IS_VALUE_CLASS)
 
         /**
          * Signifies that the corresponding class is a functional interface, i.e. marked with the keyword `fun`.

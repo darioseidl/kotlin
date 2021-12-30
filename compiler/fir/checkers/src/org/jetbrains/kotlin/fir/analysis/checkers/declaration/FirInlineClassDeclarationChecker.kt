@@ -218,9 +218,31 @@ object FirInlineClassDeclarationChecker : FirRegularClassChecker() {
     }
 
     private fun ConeKotlinType.isRecursiveInlineClassType(session: FirSession) =
-        isRecursiveInlineClassType(hashSetOf(), session)
+        isRecursiveInlineClassType(ReversibleHashSet(), session)
 
-    private fun ConeKotlinType.isRecursiveInlineClassType(visited: HashSet<ConeKotlinType>, session: FirSession): Boolean {
+    private class ReversibleHashSet : HashSet<ConeKotlinType>() {
+        override fun add(element: ConeKotlinType): Boolean = super.add(element).also {
+            if (it) {
+                addedAfterCheckPointImpl.last().add(element)
+            }
+        }
+
+        private val addedAfterCheckPointImpl: MutableList<MutableList<ConeKotlinType>> = mutableListOf(mutableListOf())
+        private val diff: List<ConeKotlinType>
+            get() = addedAfterCheckPointImpl.last()
+
+        fun <T> withRevert(proceedDiffAfterAction: (List<ConeKotlinType>) -> Unit, action: () -> T): T {
+            addedAfterCheckPointImpl.add(mutableListOf())
+            return try {
+                action().also { proceedDiffAfterAction(diff) }
+            } finally {
+                @Suppress("ConvertArgumentToSet")
+                removeAll(addedAfterCheckPointImpl.removeLast())
+            }
+        }
+    }
+
+    private fun ConeKotlinType.isRecursiveInlineClassType(visited: ReversibleHashSet, session: FirSession): Boolean {
         if (!visited.add(this)) return true
 
         val asRegularClass = this.toRegularClassSymbol(session) ?: return false
@@ -230,14 +252,12 @@ object FirInlineClassDeclarationChecker : FirRegularClassChecker() {
             .firstOrNull { it is FirConstructorSymbol && it.isPrimary } as FirConstructorSymbol?
             ?: return false
 
-        val old = visited.toHashSet()
-
-        class NestedHashSet : HashSet<ConeKotlinType>(old) {
-            override fun add(element: ConeKotlinType): Boolean = super.add(element).also { visited.add(element) }
-        }
-        return primaryConstructor
-            .valueParameterSymbols
-            .any { it.resolvedReturnTypeRef.coneType.isRecursiveInlineClassType(NestedHashSet(), session) }
+        val toAddAgain = HashSet<ConeKotlinType>()
+        return primaryConstructor.valueParameterSymbols.any {
+            visited.withRevert(proceedDiffAfterAction = { toAddAgain.addAll(it) }) {
+                it.resolvedReturnTypeRef.coneType.isRecursiveInlineClassType(visited, session)
+            }
+        }.also { visited.addAll(toAddAgain) }
     }
 
     private fun FirRegularClass.isSubtypeOfCloneable(session: FirSession): Boolean {

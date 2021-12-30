@@ -1,11 +1,11 @@
 FILE fqName:<root> fileName:/inlineCollectionOfInlineClass.kt
-  CLASS CLASS name:IT modality:FINAL visibility:public [inline] superTypes:[kotlin.Any]
+  CLASS CLASS name:IT modality:FINAL visibility:public [value] superTypes:[kotlin.Any]
     $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.IT
     CONSTRUCTOR visibility:public <> (x:kotlin.Int) returnType:<root>.IT [primary]
       VALUE_PARAMETER name:x index:0 type:kotlin.Int
       BLOCK_BODY
         DELEGATING_CONSTRUCTOR_CALL 'public constructor <init> () [primary] declared in kotlin.Any'
-        INSTANCE_INITIALIZER_CALL classDescriptor='CLASS CLASS name:IT modality:FINAL visibility:public [inline] superTypes:[kotlin.Any]'
+        INSTANCE_INITIALIZER_CALL classDescriptor='CLASS CLASS name:IT modality:FINAL visibility:public [value] superTypes:[kotlin.Any]'
     PROPERTY name:x visibility:public modality:FINAL [val]
       FIELD PROPERTY_BACKING_FIELD name:x type:kotlin.Int visibility:private [final]
         EXPRESSION_BODY
@@ -65,13 +65,13 @@ FILE fqName:<root> fileName:/inlineCollectionOfInlineClass.kt
               CONST Boolean type=kotlin.Boolean value=false
         RETURN type=kotlin.Nothing from='public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in <root>.IT'
           CONST Boolean type=kotlin.Boolean value=true
-  CLASS CLASS name:InlineMutableSet modality:FINAL visibility:public [inline] superTypes:[kotlin.collections.MutableSet<<root>.IT>]
+  CLASS CLASS name:InlineMutableSet modality:FINAL visibility:public [value] superTypes:[kotlin.collections.MutableSet<<root>.IT>]
     $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.InlineMutableSet
     CONSTRUCTOR visibility:public <> (ms:kotlin.collections.MutableSet<<root>.IT>) returnType:<root>.InlineMutableSet [primary]
       VALUE_PARAMETER name:ms index:0 type:kotlin.collections.MutableSet<<root>.IT>
       BLOCK_BODY
         DELEGATING_CONSTRUCTOR_CALL 'public constructor <init> () [primary] declared in kotlin.Any'
-        INSTANCE_INITIALIZER_CALL classDescriptor='CLASS CLASS name:InlineMutableSet modality:FINAL visibility:public [inline] superTypes:[kotlin.collections.MutableSet<<root>.IT>]'
+        INSTANCE_INITIALIZER_CALL classDescriptor='CLASS CLASS name:InlineMutableSet modality:FINAL visibility:public [value] superTypes:[kotlin.collections.MutableSet<<root>.IT>]'
     PROPERTY name:ms visibility:private modality:FINAL [val]
       FIELD PROPERTY_BACKING_FIELD name:ms type:kotlin.collections.MutableSet<<root>.IT> visibility:private [final]
         EXPRESSION_BODY
