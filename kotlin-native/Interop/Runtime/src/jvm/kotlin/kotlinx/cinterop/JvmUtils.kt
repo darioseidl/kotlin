@@ -139,17 +139,22 @@ private fun initializePath(): Array<String> {
     return paths
 }
 
-private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String): Boolean {
+private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDaemon: Boolean): Boolean {
     if (!Files.exists(Paths.get(dir, fullLibraryName))) return false
 
-    val tempDir = Files.createTempDirectory(null).toAbsolutePath().toString()
-    Files.copy(Paths.get(dir, fullLibraryName), Paths.get(tempDir, fullLibraryName), StandardCopyOption.REPLACE_EXISTING)
-    // TODO: Does not work on Windows. May be use FILE_FLAG_DELETE_ON_CLOSE?
-    File(tempDir).deleteOnExit()
-    File("$tempDir/$fullLibraryName").deleteOnExit()
+    val actualDir = if (!runFromDaemon)
+        dir
+    else {
+        val tempDir = Files.createTempDirectory(null).toAbsolutePath().toString()
+        Files.copy(Paths.get(dir, fullLibraryName), Paths.get(tempDir, fullLibraryName), StandardCopyOption.REPLACE_EXISTING)
+        // TODO: Does not work on Windows. May be use FILE_FLAG_DELETE_ON_CLOSE?
+        File(tempDir).deleteOnExit()
+        File("$tempDir/$fullLibraryName").deleteOnExit()
+        tempDir
+    }
 
     try {
-        System.load("$tempDir/$fullLibraryName")
+        System.load("$actualDir/$fullLibraryName")
     } catch (e: UnsatisfiedLinkError) {
         if (fullLibraryName.endsWith(".dylib") && e.message?.contains("library load disallowed by system policy") == true) {
             throw UnsatisfiedLinkError("""
@@ -162,20 +167,29 @@ private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String): Boolean {
                     |${'\t'}${e.message}
                     """.trimMargin())
         }
-        throw e
+        if (runFromDaemon)
+            throw e
+
+        val tempDir = Files.createTempDirectory(Paths.get(dir), null).toAbsolutePath().toString()
+        Files.createLink(Paths.get(tempDir, fullLibraryName), Paths.get(dir, fullLibraryName))
+        // TODO: Does not work on Windows. May be use FILE_FLAG_DELETE_ON_CLOSE?
+        File(tempDir).deleteOnExit()
+        File("$tempDir/$fullLibraryName").deleteOnExit()
+        System.load("$tempDir/$fullLibraryName")
     }
 
     return true
 }
 
 fun loadKonanLibrary(name: String) {
+    val runFromDaemon = System.getProperty("kotlin.native.tool.runFromDaemon") == "true"
     val fullLibraryName = System.mapLibraryName(name)
     val paths = initializePath()
     for (dir in paths) {
-        if (tryLoadKonanLibrary(dir, fullLibraryName)) return
+        if (tryLoadKonanLibrary(dir, fullLibraryName, runFromDaemon)) return
     }
     val defaultNativeLibsDir = "${KonanHomeProvider.determineKonanHome()}/konan/nativelib"
-    if (tryLoadKonanLibrary(defaultNativeLibsDir, fullLibraryName))
+    if (tryLoadKonanLibrary(defaultNativeLibsDir, fullLibraryName, runFromDaemon))
         return
     error("Lib $fullLibraryName is not found in $defaultNativeLibsDir and ${paths.joinToString { it }}")
 }
