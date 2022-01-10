@@ -1809,10 +1809,12 @@ sealed class KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     abstract class DelegateUsesExtensionPropertyTypeParameterError : KtFirDiagnostic<KtProperty>() {
         override val diagnosticClass get() = DelegateUsesExtensionPropertyTypeParameterError::class
+        abstract val usedTypeParameter: KtTypeParameterSymbol
     }
 
     abstract class DelegateUsesExtensionPropertyTypeParameterWarning : KtFirDiagnostic<KtProperty>() {
         override val diagnosticClass get() = DelegateUsesExtensionPropertyTypeParameterWarning::class
+        abstract val usedTypeParameter: KtTypeParameterSymbol
     }
 
     abstract class InitializerTypeMismatch : KtFirDiagnostic<KtProperty>() {
