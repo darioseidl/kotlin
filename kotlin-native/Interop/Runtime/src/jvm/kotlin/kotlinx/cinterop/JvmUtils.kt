@@ -103,41 +103,11 @@ inline fun <reified R : Number> Number.invalidNarrowing(): R {
     throw Error("unable to narrow ${this.javaClass.simpleName} \"${this}\" to ${R::class.java.simpleName}")
 }
 
-// This is J2K of ClassLoader::initializePath.
-private fun initializePath(): Array<String> {
-    val ldpath = System.getProperty("java.library.path", "")
-    val ps = File.pathSeparator
-    val ldlen = ldpath.length
-    var i: Int
-    var j: Int
-    var n: Int
-    // Count the separators in the path
-    i = ldpath.indexOf(ps)
-    n = 0
-    while (i >= 0) {
-        n++
-        i = ldpath.indexOf(ps, i + 1)
-    }
-
-    // allocate the array of paths - n :'s = n + 1 path elements
-    val paths = Array(n + 1) { "" }
-
-    // Fill the array with paths from the ldpath
-    i = 0
-    n = i
-    j = ldpath.indexOf(ps)
-    while (j >= 0) {
-        if (j - i > 0) {
-            paths[n++] = ldpath.substring(i, j)
-        } else if (j - i == 0) {
-            paths[n++] = "."
-        }
-        i = j + 1
-        j = ldpath.indexOf(ps, i)
-    }
-    paths[n] = ldpath.substring(i, ldlen)
-    return paths
-}
+// Ported from ClassLoader::initializePath.
+private fun initializePath() =
+        System.getProperty("java.library.path", "")
+                .split(File.pathSeparatorChar)
+                .map { if (it == "") "." else it }
 
 private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDaemon: Boolean): Boolean {
     if (!Files.exists(Paths.get(dir, fullLibraryName))) return false
