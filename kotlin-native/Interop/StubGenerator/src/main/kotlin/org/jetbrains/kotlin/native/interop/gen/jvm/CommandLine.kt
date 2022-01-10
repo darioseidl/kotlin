@@ -65,7 +65,7 @@ open class CommonInteropArguments(val argParser: ArgParser) {
     val tempDir by argParser.option(ArgType.String, TEMP_DIR,
             description = "save temporary files to the given directory")
     val projectDir by argParser.option(ArgType.String, PROJECT_DIR,
-            description = "In case running from Gradle, the current project root directory")
+            description = "base directory for relative libraryPath")
     val kotlincOption by argParser.option(ArgType.String, "Xkotlinc-option",
             description = "additional kotlinc compiler option").multiple()
     val overrideKonanProperties by argParser.option(ArgType.String,

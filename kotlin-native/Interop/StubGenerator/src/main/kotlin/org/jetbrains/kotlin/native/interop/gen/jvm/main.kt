@@ -247,14 +247,12 @@ private fun processCLib(flavor: KotlinPlatform, cinteropArguments: CInteropArgum
     val excludedFunctions = def.config.excludedFunctions.toSet()
     val excludedMacros = def.config.excludedMacros.toSet()
     val staticLibraries = def.config.staticLibraries + cinteropArguments.staticLibrary.toTypedArray()
-    val defLibraryPaths = cinteropArguments.projectDir?.let { projectDir ->
-        def.config.libraryPaths.map {
-            if (Paths.get(it).isAbsolute)
-                it
-            else Paths.get(projectDir, it).absolutePathString()
-        }
-    } ?: def.config.libraryPaths
-    val libraryPaths = defLibraryPaths + cinteropArguments.libraryPath.toTypedArray()
+    val projectDir = cinteropArguments.projectDir
+    val libraryPaths = (def.config.libraryPaths + cinteropArguments.libraryPath).map {
+        if (projectDir == null || Paths.get(it).isAbsolute)
+            it
+        else Paths.get(projectDir, it).absolutePathString()
+    }
     val fqParts = (cinteropArguments.pkg ?: def.config.packageName)?.split('.')
             ?: defFile!!.name.split('.').reversed().drop(1)
 
