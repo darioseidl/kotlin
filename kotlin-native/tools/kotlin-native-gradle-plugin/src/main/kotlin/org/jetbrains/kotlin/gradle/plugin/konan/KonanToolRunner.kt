@@ -37,6 +37,8 @@ internal interface KonanToolRunner {
 
 internal fun KonanToolRunner.run(vararg args: String) = run(args.toList())
 
+private const val runFromDaemonPropertyName = "kotlin.native.tool.runFromDaemon"
+
 internal abstract class KonanCliRunner(
         protected val toolName: String,
         project: Project,
@@ -48,9 +50,12 @@ internal abstract class KonanCliRunner(
     final override val mainClass get() = "org.jetbrains.kotlin.cli.utilities.MainKt"
     final override val daemonEntryPoint get() = "daemonMain"
 
+    final override val mustRunViaExec get() = false.also { System.setProperty(runFromDaemonPropertyName, "true") }
+
     // We need to unset some environment variables which are set by XCode and may potentially affect the tool executed.
     final override val execEnvironmentBlacklist: Set<String> by lazy {
         HashSet<String>().also { collector ->
+            collector.add(runFromDaemonPropertyName)
             KonanPlugin::class.java.getResourceAsStream("/env_blacklist")?.let { stream ->
                 stream.reader().use { r -> r.forEachLine { collector.add(it) } }
             }
@@ -92,8 +97,6 @@ internal class KonanCliCompilerRunner(
         val useArgFile: Boolean = true,
         konanHome: String = project.konanHome
 ) : KonanCliRunner("konanc", project, additionalJvmArgs, konanHome) {
-    override val mustRunViaExec get() = false
-
     override fun transformArgs(args: List<String>): List<String> {
         if (!useArgFile) return super.transformArgs(args)
 
@@ -130,8 +133,6 @@ internal class KonanCliInteropRunner(
         additionalJvmArgs: List<String> = emptyList(),
         konanHome: String = project.konanHome
 ) : KonanCliRunner("cinterop", project, additionalJvmArgs, konanHome) {
-    override val mustRunViaExec get() = false
-
     override fun transformArgs(args: List<String>): List<String> {
         return super.transformArgs(args) + listOf("-Xproject-dir", project.projectDir.toString())
     }
@@ -171,6 +172,4 @@ internal class KonanKlibRunner(
         project: Project,
         additionalJvmArgs: List<String> = emptyList(),
         konanHome: String = project.konanHome
-) : KonanCliRunner("klib", project, additionalJvmArgs, konanHome) {
-    override val mustRunViaExec get() = false
-}
+) : KonanCliRunner("klib", project, additionalJvmArgs, konanHome)

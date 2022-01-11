@@ -114,7 +114,18 @@ private val systemTmpDir = System.getProperty("java.io.tmpdir")
 
 // TODO: File(..).deleteOnExit() does not work on Windows. May be use FILE_FLAG_DELETE_ON_CLOSE?
 private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDaemon: Boolean): Boolean {
-    if (!Files.exists(Paths.get(dir, fullLibraryName))) return false
+    val fullLibraryPath = Paths.get(dir, fullLibraryName)
+    if (!Files.exists(fullLibraryPath)) return false
+
+    fun createTempDir() = if (runFromDaemon) {
+        Files.createTempDirectory(null).toAbsolutePath().toString().also {
+            Files.copy(fullLibraryPath, Paths.get(it, fullLibraryName))
+        }
+    } else {
+        Files.createTempDirectory(Paths.get(dir), null).toAbsolutePath().toString().also {
+            Files.createLink(Paths.get(it, fullLibraryName), fullLibraryPath)
+        }
+    }
 
     val defaultTempDir = if (!runFromDaemon)
         dir
@@ -123,8 +134,8 @@ private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDae
         // with relocation table haven't been substituted by the system loader without reporting any error).
         // We workaround this by copying the library to some temporary place.
         // For now this behaviour have only been observed for compilations run from the Gradle daemon on Team City.
-        val hash = sha256.digest(Files.readAllBytes(Paths.get(dir, fullLibraryName)))
-        val tempDirName = buildString {
+        val hash = sha256.digest(Files.readAllBytes(fullLibraryPath))
+        val defaultTempDirName = buildString {
             append(fullLibraryName)
             append('_')
             hash.forEach {
@@ -134,21 +145,15 @@ private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDae
                 append(hex)
             }
         }
-        val tempDirPath = Paths.get(systemTmpDir, tempDirName)
-        val tempDir = tempDirPath.toAbsolutePath().toString()
-        try {
-            Files.createDirectory(tempDirPath)
-            File(tempDir).deleteOnExit()
-        } catch (e: FileAlreadyExistsException) {
-            // Ignore: already created by other load operation.
+        val defaultTempDir = Paths.get(systemTmpDir, defaultTempDirName).toAbsolutePath().toString()
+        val tempDir = File(createTempDir())
+        if (tempDir.renameTo(File(defaultTempDir))) {
+            File(defaultTempDir).deleteOnExit()
+            File("$defaultTempDir/$fullLibraryName").deleteOnExit()
+        } else {
+            tempDir.deleteRecursively()
         }
-        try {
-            Files.copy(Paths.get(dir, fullLibraryName), Paths.get(tempDir, fullLibraryName))
-            File("$tempDir/$fullLibraryName").deleteOnExit()
-        } catch (e: FileAlreadyExistsException) {
-            // Ignore: already created by other load operation.
-        }
-        tempDir
+        defaultTempDir
     }
 
     try {
@@ -165,15 +170,7 @@ private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDae
                     |${'\t'}${e.message}
                     """.trimMargin())
         }
-        val tempDir = if (runFromDaemon) {
-            Files.createTempDirectory(null).toAbsolutePath().toString().also {
-                Files.copy(Paths.get(dir, fullLibraryName), Paths.get(it, fullLibraryName))
-            }
-        } else {
-            Files.createTempDirectory(Paths.get(dir), null).toAbsolutePath().toString().also {
-                Files.createLink(Paths.get(it, fullLibraryName), Paths.get(dir, fullLibraryName))
-            }
-        }
+        val tempDir = createTempDir()
 
         File(tempDir).deleteOnExit()
         File("$tempDir/$fullLibraryName").deleteOnExit()

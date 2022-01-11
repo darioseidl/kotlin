@@ -65,18 +65,7 @@ private fun setupClangEnv() {
     setEnv("LIBCLANG_DISABLE_CRASH_RECOVERY", "1")
 }
 
-private const val runFromDaemonPropertyName = "kotlin.native.tool.runFromDaemon"
-
 fun daemonMain(args: Array<String>) = usingNativeMemoryAllocator {
-    val oldValue = System.getProperty(runFromDaemonPropertyName)
-    System.setProperty(runFromDaemonPropertyName, "true")
-    try {
-        setupClangEnv() // For in-process invocation have to setup proper environment manually.
-        mainImpl(args, true, ::konancMainForGradle)
-    } finally {
-        if (oldValue == null || oldValue == "")
-            System.clearProperty(runFromDaemonPropertyName)
-        else
-            System.setProperty(runFromDaemonPropertyName, oldValue)
-    }
+    setupClangEnv() // For in-process invocation have to setup proper environment manually.
+    mainImpl(args, true, ::konancMainForGradle)
 }
