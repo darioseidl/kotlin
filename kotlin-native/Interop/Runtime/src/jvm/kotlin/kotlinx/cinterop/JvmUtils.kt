@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.konan.util.KonanHomeProvider
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 
 private fun decodeFromUtf8(bytes: ByteArray) = String(bytes)
 internal fun encodeToUtf8(str: String) = str.toByteArray()
@@ -109,17 +109,41 @@ private fun initializePath() =
                 .split(File.pathSeparatorChar)
                 .map { if (it == "") "." else it }
 
+private val sha256 = MessageDigest.getInstance("SHA-256")
+private val systemTmpDir = System.getProperty("java.io.tmpdir")
+
 private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDaemon: Boolean): Boolean {
     if (!Files.exists(Paths.get(dir, fullLibraryName))) return false
 
     val actualDir = if (!runFromDaemon)
         dir
     else {
-        val tempDir = Files.createTempDirectory(null).toAbsolutePath().toString()
-        Files.copy(Paths.get(dir, fullLibraryName), Paths.get(tempDir, fullLibraryName), StandardCopyOption.REPLACE_EXISTING)
+        // Sometimes loading library from its original place doesn't work (it gets 'half-loaded'
+        // with relocation table haven't been substituted by the system loader without reporting any error).
+        // We workaround this by copying the library to some temporary place.
+        // For now this behaviour have only been observed for compilations run from the Gradle daemon on Team City.
+        val hash = sha256.digest(Files.readAllBytes(Paths.get(dir, fullLibraryName)))
+        val tempDirName = buildString {
+            append(fullLibraryName)
+            append('_')
+            hash.forEach {
+                val hex = it.toUByte().toString(16)
+                if (hex.length == 1)
+                    append('0')
+                append(hex)
+            }
+        }
+        val tempDirPath = Paths.get(systemTmpDir, tempDirName)
+        val tempDir = tempDirPath.toAbsolutePath().toString()
+        try {
+            Files.createDirectory(tempDirPath)
+            Files.copy(Paths.get(dir, fullLibraryName), Paths.get(tempDir, fullLibraryName))
+        } catch (e: FileAlreadyExistsException) {
+            // Ignore: already created by other load operation.
+        }
         // TODO: Does not work on Windows. May be use FILE_FLAG_DELETE_ON_CLOSE?
-        File(tempDir).deleteOnExit()
         File("$tempDir/$fullLibraryName").deleteOnExit()
+        File(tempDir).deleteOnExit()
         tempDir
     }
 
@@ -137,14 +161,19 @@ private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDae
                     |${'\t'}${e.message}
                     """.trimMargin())
         }
-        if (runFromDaemon)
-            throw e
+        val tempDir = if (runFromDaemon) {
+            Files.createTempDirectory(null).toAbsolutePath().toString().also {
+                Files.copy(Paths.get(actualDir, fullLibraryName), Paths.get(it, fullLibraryName))
+            }
+        } else {
+            Files.createTempDirectory(Paths.get(actualDir), null).toAbsolutePath().toString().also {
+                Files.createLink(Paths.get(it, fullLibraryName), Paths.get(actualDir, fullLibraryName))
+            }
+        }
 
-        val tempDir = Files.createTempDirectory(Paths.get(dir), null).toAbsolutePath().toString()
-        Files.createLink(Paths.get(tempDir, fullLibraryName), Paths.get(dir, fullLibraryName))
         // TODO: Does not work on Windows. May be use FILE_FLAG_DELETE_ON_CLOSE?
-        File(tempDir).deleteOnExit()
         File("$tempDir/$fullLibraryName").deleteOnExit()
+        File(tempDir).deleteOnExit()
         System.load("$tempDir/$fullLibraryName")
     }
 
