@@ -112,10 +112,11 @@ private fun initializePath() =
 private val sha256 = MessageDigest.getInstance("SHA-256")
 private val systemTmpDir = System.getProperty("java.io.tmpdir")
 
+// TODO: File(..).deleteOnExit() does not work on Windows. May be use FILE_FLAG_DELETE_ON_CLOSE?
 private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDaemon: Boolean): Boolean {
     if (!Files.exists(Paths.get(dir, fullLibraryName))) return false
 
-    val actualDir = if (!runFromDaemon)
+    val defaultTempDir = if (!runFromDaemon)
         dir
     else {
         // Sometimes loading library from its original place doesn't work (it gets 'half-loaded'
@@ -137,18 +138,21 @@ private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDae
         val tempDir = tempDirPath.toAbsolutePath().toString()
         try {
             Files.createDirectory(tempDirPath)
-            Files.copy(Paths.get(dir, fullLibraryName), Paths.get(tempDir, fullLibraryName))
+            File(tempDir).deleteOnExit()
         } catch (e: FileAlreadyExistsException) {
             // Ignore: already created by other load operation.
         }
-        // TODO: Does not work on Windows. May be use FILE_FLAG_DELETE_ON_CLOSE?
-        File("$tempDir/$fullLibraryName").deleteOnExit()
-        File(tempDir).deleteOnExit()
+        try {
+            Files.copy(Paths.get(dir, fullLibraryName), Paths.get(tempDir, fullLibraryName))
+            File("$tempDir/$fullLibraryName").deleteOnExit()
+        } catch (e: FileAlreadyExistsException) {
+            // Ignore: already created by other load operation.
+        }
         tempDir
     }
 
     try {
-        System.load("$actualDir/$fullLibraryName")
+        System.load("$defaultTempDir/$fullLibraryName")
     } catch (e: UnsatisfiedLinkError) {
         if (fullLibraryName.endsWith(".dylib") && e.message?.contains("library load disallowed by system policy") == true) {
             throw UnsatisfiedLinkError("""
@@ -163,17 +167,16 @@ private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDae
         }
         val tempDir = if (runFromDaemon) {
             Files.createTempDirectory(null).toAbsolutePath().toString().also {
-                Files.copy(Paths.get(actualDir, fullLibraryName), Paths.get(it, fullLibraryName))
+                Files.copy(Paths.get(dir, fullLibraryName), Paths.get(it, fullLibraryName))
             }
         } else {
-            Files.createTempDirectory(Paths.get(actualDir), null).toAbsolutePath().toString().also {
-                Files.createLink(Paths.get(it, fullLibraryName), Paths.get(actualDir, fullLibraryName))
+            Files.createTempDirectory(Paths.get(dir), null).toAbsolutePath().toString().also {
+                Files.createLink(Paths.get(it, fullLibraryName), Paths.get(dir, fullLibraryName))
             }
         }
 
-        // TODO: Does not work on Windows. May be use FILE_FLAG_DELETE_ON_CLOSE?
-        File("$tempDir/$fullLibraryName").deleteOnExit()
         File(tempDir).deleteOnExit()
+        File("$tempDir/$fullLibraryName").deleteOnExit()
         System.load("$tempDir/$fullLibraryName")
     }
 
