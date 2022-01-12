@@ -52,10 +52,13 @@ internal abstract class KonanCliRunner(
 
     final override val mustRunViaExec get() = false.also { System.setProperty(runFromDaemonPropertyName, "true") }
 
+    final override val execSystemPropertiesBlacklist: Set<String> by lazy {
+        super.execSystemPropertiesBlacklist.toMutableSet().also { it.add(runFromDaemonPropertyName) }
+    }
+
     // We need to unset some environment variables which are set by XCode and may potentially affect the tool executed.
     final override val execEnvironmentBlacklist: Set<String> by lazy {
         HashSet<String>().also { collector ->
-            collector.add(runFromDaemonPropertyName)
             KonanPlugin::class.java.getResourceAsStream("/env_blacklist")?.let { stream ->
                 stream.reader().use { r -> r.forEachLine { collector.add(it) } }
             }

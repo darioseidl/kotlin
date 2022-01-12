@@ -117,7 +117,7 @@ private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDae
     val fullLibraryPath = Paths.get(dir, fullLibraryName)
     if (!Files.exists(fullLibraryPath)) return false
 
-    fun createTempDir() = if (runFromDaemon) {
+    fun createTempDirWithLibrary() = if (runFromDaemon) {
         Files.createTempDirectory(null).toAbsolutePath().toString().also {
             Files.copy(fullLibraryPath, Paths.get(it, fullLibraryName))
         }
@@ -146,7 +146,7 @@ private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDae
             }
         }
         val defaultTempDir = Paths.get(systemTmpDir, defaultTempDirName).toAbsolutePath().toString()
-        val tempDir = File(createTempDir())
+        val tempDir = File(createTempDirWithLibrary())
         if (tempDir.renameTo(File(defaultTempDir))) {
             File(defaultTempDir).deleteOnExit()
             File("$defaultTempDir/$fullLibraryName").deleteOnExit()
@@ -170,7 +170,7 @@ private fun tryLoadKonanLibrary(dir: String, fullLibraryName: String, runFromDae
                     |${'\t'}${e.message}
                     """.trimMargin())
         }
-        val tempDir = createTempDir()
+        val tempDir = createTempDirWithLibrary()
 
         File(tempDir).deleteOnExit()
         File("$tempDir/$fullLibraryName").deleteOnExit()
