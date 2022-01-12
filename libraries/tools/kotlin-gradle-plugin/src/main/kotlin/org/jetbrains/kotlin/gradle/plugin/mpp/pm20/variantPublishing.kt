@@ -119,7 +119,9 @@ open class VariantPublishingConfigurator @Inject constructor(
                         (this as DefaultMavenPublication).isAlias = true
                         from(platformComponent)
                         publishedModuleHolder.assignMavenPublication(this)
-                        artifactId = dashSeparatedName(project.name, publishedModuleHolder.defaultPublishedModuleSuffix)
+                        artifactId = dashSeparatedName(
+                            project.name, publishedModuleHolder.defaultPublishedModuleSuffix
+                        ).toLowerCase(Locale.ENGLISH)
                     }
                 }
             }
