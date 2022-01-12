@@ -154,11 +154,12 @@ abstract class BaseGradleIT {
         fun prepareWrapper(
             version: String,
             environmentVariables: Map<String, String> = mapOf(),
-            withDaemon: Boolean = true
+            withDaemon: Boolean = true,
+            parallel: Boolean = false
         ): File {
             val wrapper = gradleWrappers.getOrPut(version) { createNewWrapperDir(version) }
 
-            if (withDaemon) {
+            if (withDaemon && !parallel) {
                 DaemonRegistry.register(version)
 
                 if (DaemonRegistry.activeDaemons.size > MAX_ACTIVE_GRADLE_PROCESSES) {
@@ -267,6 +268,8 @@ abstract class BaseGradleIT {
         val abiSnapshot: Boolean = false,
         val hierarchicalMPPStructureSupport: Boolean? = null,
         val enableCompatibilityMetadataVariant: Boolean? = null,
+        val parallel: Boolean = false,
+        val maxWorkers: Int = (Runtime.getRuntime().availableProcessors() / 4 - 1).coerceAtLeast(2),
     )
 
     enum class ConfigurationCacheProblems {
@@ -288,6 +291,15 @@ abstract class BaseGradleIT {
         val minLogLevel: LogLevel = LogLevel.DEBUG,
         val addHeapDumpOptions: Boolean = true
     ) {
+
+        constructor(
+            projectName: String,
+            gradleVersion: GradleVersion,
+            directoryPrefix: String? = null,
+            minLogLevel: LogLevel = LogLevel.DEBUG,
+            addHeapDumpOptions: Boolean = true
+        ) : this(projectName, GradleVersionRequired.Exact(gradleVersion.version), directoryPrefix, minLogLevel, addHeapDumpOptions)
+
         internal val testCase = this@BaseGradleIT
 
         val resourceDirName = if (directoryPrefix != null) "$directoryPrefix/$projectName" else projectName
@@ -417,7 +429,7 @@ abstract class BaseGradleIT {
         val wrapperVersion = chooseWrapperVersionOrFinishTest()
 
         val env = createEnvironmentVariablesMap(options)
-        val wrapperDir = prepareWrapper(wrapperVersion, env)
+        val wrapperDir = prepareWrapper(wrapperVersion, env, parallel = options.parallel)
 
         val cmd = createBuildCommand(wrapperDir, params, options)
 
@@ -942,6 +954,10 @@ Finished executing task ':$taskName'|
 
             if (options.enableCompatibilityMetadataVariant != null) {
                 add("-Pkotlin.mpp.enableCompatibilityMetadataVariant=${options.enableCompatibilityMetadataVariant}")
+            }
+            if (options.parallel) {
+                add("--parallel")
+                add("--max-workers=${options.maxWorkers}")
             }
 
             add("-Dorg.gradle.unsafe.configuration-cache=${options.configurationCache}")
