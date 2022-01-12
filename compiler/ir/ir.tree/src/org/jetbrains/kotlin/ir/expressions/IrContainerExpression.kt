@@ -6,10 +6,14 @@
 package org.jetbrains.kotlin.ir.expressions
 
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 abstract class IrContainerExpression : IrExpression(), IrStatementContainer {
     abstract val origin: IrStatementOrigin?
     abstract val isTransparentScope: Boolean
 
     override val statements: MutableList<IrStatement> = ArrayList(2)
+
+    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
+        visitor.visitContainerExpression(this, data)
 }

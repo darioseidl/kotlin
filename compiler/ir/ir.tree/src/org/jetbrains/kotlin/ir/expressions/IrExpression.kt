@@ -10,12 +10,16 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrAttributeContainer
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 abstract class IrExpression : IrElementBase(), IrStatement, IrVarargElement, IrAttributeContainer {
     @Suppress("LeakingThis")
     override var attributeOwnerId: IrAttributeContainer = this
 
     abstract var type: IrType
+
+    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
+        visitor.visitExpression(this, data)
 
     override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrExpression =
         accept(transformer, data) as IrExpression
