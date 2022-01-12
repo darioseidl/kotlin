@@ -259,6 +259,7 @@ enum class LanguageFeature(
     // 1.9
 
     DisableCheckingChangedProgressionsResolve(KOTLIN_1_9), // KT-49276
+    ForbidExtensionFunctionTypeOnNonFunctionTypes(KOTLIN_1_9), // related to KT-43527
 
     // Temporarily disabled, see KT-27084/KT-22379
     SoundSmartcastFromLoopConditionForLoopAssignedVariables(sinceVersion = null, kind = BUG_FIX),
