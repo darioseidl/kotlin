@@ -21,7 +21,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-@GradleTestVersions(minVersion = TestVersions.Gradle.MIN_SUPPORTED, maxVersion = TestVersions.Gradle.MAX_SUPPORTED)
+@GradleTestVersions(maxVersion = TestVersions.Gradle.G_6_8)
 open class KotlinAndroid36GradleIT : KotlinAndroid34GradleIT() {
     override val androidGradlePluginVersion: AGPVersion
         get() = AGPVersion.v3_6_0
